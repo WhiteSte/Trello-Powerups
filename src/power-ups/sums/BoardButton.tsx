@@ -5,6 +5,7 @@ import { useSum } from "./UseSum"
 import { Strings } from "../../res/Strings"
 import { LocalisedString } from "../../components/LocalisedString"
 import { ListSelector as ListSelectorComponent } from "../../components/ListSelector"
+import { LabelFilter as LabelFilterComponent } from "../../components/LabelFilter"
 import { Errors } from "../../util/Errors"
 import { useMount } from "../../util/Hooks"
 import { Storage } from "../../data/Storage"
@@ -24,7 +25,8 @@ export const BoardButton = () => {
     const { current: trello } = useRef(window.TrelloPowerUp?.iframe({ localization }))
     const [listId, setListId] = useState<string | undefined>()
     const [sortConfig, setSortConfig] = useState<SortState>({ key: "name", direction: "asc" })
-    const sumState = useSum(trello, listId)
+    const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([])
+    const sumState = useSum(trello, listId, selectedLabelIds)
     const sortedData = useMemo(() => {
         if (!sumState.data) {
             return []
@@ -38,7 +40,7 @@ export const BoardButton = () => {
                 return direction === "asc" ? a.sum - b.sum : b.sum - a.sum
             }
         })
-    }, [sumState, sortConfig])
+    }, [sortConfig, sumState.data])
 
     const resize = (content: HTMLDivElement | null) => content?.scrollHeight && trello?.sizeTo(content.scrollHeight)
 
@@ -70,11 +72,16 @@ export const BoardButton = () => {
 
             const cachedListId = await Storage(trello).get<string>(Config.keys.sumListId)
             const cachedSortPref = await Storage(trello).get<SortState>(Config.keys.sumSortPreference)
+            const cachedLabelIds = await Storage(trello).get<string[]>(Config.keys.sumLabelIds)
 
             setListId(cachedListId)
 
             if (cachedSortPref) {
                 setSortConfig(cachedSortPref)
+            }
+
+            if (cachedLabelIds) {
+                setSelectedLabelIds(cachedLabelIds)
             }
         }
 
@@ -88,6 +95,16 @@ export const BoardButton = () => {
                 : { key, direction: "asc" }
         )
     }
+
+    useEffect(() => {
+        const cacheSelectedLabels = async () => {
+            if (trello) {
+                await Storage(trello).set(Config.keys.sumLabelIds, selectedLabelIds)
+            }
+        }
+
+        cacheSelectedLabels().catch(Errors.warn)
+    }, [selectedLabelIds, trello])
 
     if (sumState.loading) {
         return (
@@ -137,6 +154,7 @@ export const BoardButton = () => {
     return (
         <Wrapper ref={resize}>
             <ListSelector trello={trello} selectedId={listId} onSelected={setListId} />
+            <LabelFilter trello={trello} selectedIds={selectedLabelIds} onChange={setSelectedLabelIds} />
             <Content />
         </Wrapper>
     )
@@ -152,6 +170,10 @@ const Wrapper = styled.div`
 const ListSelector = styled(ListSelectorComponent)`
     margin-bottom: ${Sizes.standard}px;
     align-self: stretch;
+`
+
+const LabelFilter = styled(LabelFilterComponent)`
+    margin-bottom: ${Sizes.standard}px;
 `
 
 const SumTable = styled.table`

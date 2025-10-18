@@ -22,7 +22,8 @@ const boardButtonCapability = async (trello: TrelloIFrame) => [
     }
 ]
 
-const removeDataCapability = (trello: TrelloIFrame) => Promise.all([Storage(trello).remove(Config.keys.sumListId)])
+const removeDataCapability = (trello: TrelloIFrame) =>
+    Promise.all([Storage(trello).remove(Config.keys.sumListId), Storage(trello).remove(Config.keys.sumLabelIds)])
 
 export const Sums = () => {
     useMount(() => {
