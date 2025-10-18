@@ -48,7 +48,7 @@ const sumFields = (cards: Card[], fields: Board) => {
     return Object.values(sums)
 }
 
-export const useSum = (trello?: TrelloIFrame, listId?: string) => {
+export const useSum = (trello?: TrelloIFrame, listId?: string, labelIds: string[] = []) => {
     const [state, setState] = useState<State>({})
 
     useEffect(() => {
@@ -59,11 +59,15 @@ export const useSum = (trello?: TrelloIFrame, listId?: string) => {
 
             setState({ loading: true })
 
-            const cards = await trello.cards("id", "idList", "customFieldItems")
+            const cards = await trello.cards("id", "idList", "customFieldItems", "labels")
             const fields = await trello.board("customFields")
             const listCards = listId === Config.ids.allLists ? cards : cards.filter(it => it.idList === listId)
+            const filteredCards =
+                labelIds.length === 0
+                    ? listCards
+                    : listCards.filter(card => card.labels.some(label => labelIds.includes(label.id)))
 
-            const sum = sumFields(listCards, fields)
+            const sum = sumFields(filteredCards, fields)
             const error = sum.length ? undefined : await Strings.localise("noDataError", trello)
 
             setState({ error, data: sum })
@@ -73,7 +77,7 @@ export const useSum = (trello?: TrelloIFrame, listId?: string) => {
             setState({ error: "Failed to load trello data" })
             Errors.error(e)
         })
-    }, [trello, listId])
+    }, [trello, listId, labelIds])
 
     return state
 }
